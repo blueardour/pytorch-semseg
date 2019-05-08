@@ -1,4 +1,4 @@
-import logging
+
 from ptsemseg.augmentations.augmentations import (
     AdjustContrast,
     AdjustGamma,
@@ -17,8 +17,6 @@ from ptsemseg.augmentations.augmentations import (
     Compose,
 )
 
-logger = logging.getLogger("ptsemseg")
-
 key2aug = {
     "gamma": AdjustGamma,
     "hue": AdjustHue,
@@ -36,14 +34,17 @@ key2aug = {
     "ccrop": CenterCrop,
 }
 
-
-def get_composed_augmentations(aug_dict):
+import logging
+def get_composed_augmentations(aug_dict, logger=None):
     if aug_dict is None:
-        logger.info("Using No Augmentations")
+        if logger is not None:
+            logger.info("Using No Augmentations")
         return None
 
     augmentations = []
     for aug_key, aug_param in aug_dict.items():
         augmentations.append(key2aug[aug_key](aug_param))
-        logger.info("Using {} aug with params {}".format(aug_key, aug_param))
+        if logger is not None:
+            logger.info("Using {} aug with params {}".format(aug_key, aug_param))
     return Compose(augmentations)
+

@@ -24,12 +24,6 @@ from tensorboardX import SummaryWriter
 
 def train(cfg, writer, logger):
 
-    # Setup seeds
-    torch.manual_seed(cfg.get("seed", 1337))
-    torch.cuda.manual_seed(cfg.get("seed", 1337))
-    np.random.seed(cfg.get("seed", 1337))
-    random.seed(cfg.get("seed", 1337))
-
     # Setup device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

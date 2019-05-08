@@ -1,16 +1,17 @@
+
 import os
-from os.path import join as pjoin
 import collections
 import json
-import torch
 import numpy as np
 import scipy.misc as m
 import scipy.io as io
-import matplotlib.pyplot as plt
 import glob
 
-from PIL import Image
 from tqdm import tqdm
+from os.path import join as pjoin
+from PIL import Image
+
+import torch
 from torch.utils import data
 from torchvision import transforms
 
@@ -60,7 +61,6 @@ class pascalVOCLoader(data.Dataset):
         self.img_norm = img_norm
         self.test_mode = test_mode
         self.n_classes = 21
-        self.mean = np.array([104.00699, 116.66877, 122.67892])
         self.files = collections.defaultdict(list)
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
 
@@ -229,25 +229,30 @@ class pascalVOCLoader(data.Dataset):
         assert expected == 9733, "unexpected dataset sizes"
 
 
-# Leave code for debugging purposes
-# import ptsemseg.augmentations as aug
-# if __name__ == '__main__':
-# # local_path = '/home/meetshah1995/datasets/VOCdevkit/VOC2012/'
-# bs = 4
-# augs = aug.Compose([aug.RandomRotate(10), aug.RandomHorizontallyFlip()])
-# dst = pascalVOCLoader(root=local_path, is_transform=True, augmentations=augs)
-# trainloader = data.DataLoader(dst, batch_size=bs)
-# for i, data in enumerate(trainloader):
-# imgs, labels = data
-# imgs = imgs.numpy()[:, ::-1, :, :]
-# imgs = np.transpose(imgs, [0,2,3,1])
-# f, axarr = plt.subplots(bs, 2)
-# for j in range(bs):
-# axarr[j][0].imshow(imgs[j])
-# axarr[j][1].imshow(dst.decode_segmap(labels.numpy()[j]))
-# plt.show()
-# a = raw_input()
-# if a == 'ex':
-# break
-# else:
-# plt.close()
+#Leave code for debugging purposes
+import ptsemseg.augmentations as aug
+import matplotlib.pyplot as plt
+
+if __name__ == '__main__':
+    local_path = '/data/pascal/VOCdevkit/VOC2012/'
+    sbd_path = '/data/pascal/benchmark_RELEASE/'
+    bs = 4
+    augs = None
+    dst = pascalVOCLoader(root=local_path, sbd_path=sbd_path, split='train_aug', is_transform=True, augmentations=augs)
+
+    trainloader = data.DataLoader(dst, batch_size=bs)
+    for i, data in enumerate(trainloader):
+        imgs, labels = data
+        #imgs = imgs.numpy()[:, ::-1, :, :]
+        imgs = np.transpose(imgs, [0,2,3,1])
+        imgs = np.transpose(imgs, [0,2,3,1])
+        f, axarr = plt.subplots(bs, 2)
+        for j in range(bs):
+          axarr[j][0].imshow(imgs[j])
+          axarr[j][1].imshow(dst.decode_segmap(labels.numpy()[j]))
+          plt.show()
+          a = input()
+          if a == 'ex':
+            break
+          else:
+            plt.close()
