@@ -1,3 +1,7 @@
+# Disclaim
+
+The repo is cloned from [https://github.com/meetshah1995/pytorch-semseg](https://github.com/meetshah1995/pytorch-semseg). And revised for training
+
 # pytorch-semseg
 
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/meetshah1995/pytorch-semseg/blob/master/LICENSE)
