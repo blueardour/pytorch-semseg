@@ -17,7 +17,10 @@ def main():
 
     if utils.check_file(args.config):
         with open(args.config) as fp:
-            cfg = yaml.load(fp, Loader=yaml.FullLoader)
+            if hasattr(yaml, 'FullLoader'):
+                cfg = yaml.load(fp, Loader=yaml.FullLoader)
+            else:
+                cfg = yaml.load(fp)
 
     if not os.path.exists(args.log_dir):
         os.makedirs(args.log_dir)

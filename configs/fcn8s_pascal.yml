@@ -9,14 +9,14 @@ data:
     dataset: pascal
     train_split: train_aug
     val_split: train_aug_val
-    img_rows: 338
-    img_cols: 338
-    #img_rows: "same"
-    #img_cols: "same"
-    path: /media/Windows-SSD/Linux/pascal/VOCdevkit/VOC2012/
-    sbd_path: /media/Windows-SSD/Linux/pascal/benchmark_RELEASE/
-    #path: /data/pascal/VOCdevkit/VOC2012/
-    #sbd_path: /data/pascal/benchmark_RELEASE/
+    #img_rows: 338
+    #img_cols: 338
+    #path: /media/Windows-SSD/Linux/pascal/VOCdevkit/VOC2012/
+    #sbd_path: /media/Windows-SSD/Linux/pascal/benchmark_RELEASE/
+    img_rows: "same"
+    img_cols: "same"
+    path: /data/pascal/VOCdevkit/VOC2012/
+    sbd_path: /data/pascal/benchmark_RELEASE/
 
 training:
     loss:
