@@ -1,12 +1,14 @@
-import time
-import os
-import yaml
+import os, sys, glob, time, yaml
+import numpy as np
 import logging
-import torch
+import argparse
+import time
 import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
+import torchvision
 import torchvision.transforms as transforms
+import torchvision.datasets as datasets
 
 import models
 import utils
@@ -22,8 +24,10 @@ def main():
             else:
                 cfg = yaml.load(fp)
 
+    # log_dir
     if not os.path.exists(args.log_dir):
         os.makedirs(args.log_dir)
+
     if isinstance(args.model, str):
         model_arch = args.model
         model_name = model_arch
@@ -37,12 +41,12 @@ def main():
         log_suffix = model_arch + '-' + args.case
     utils.setup_logging(os.path.join(args.log_dir, log_suffix + '.txt'), resume=args.resume)
 
+    # tensorboard
     if args.tensorboard and not args.evaluate:
         args.tensorboard = SummaryWriter(args.log_dir, filename_suffix='.' + log_suffix)
     else:
         args.tensorboard = None
 
-    # Setup
     torch.manual_seed(args.seed)
     if torch.cuda.is_available() and len(args.device_ids) > 0:
         args.device_ids = [x for x in args.device_ids if x < torch.cuda.device_count() and x >= 0]
@@ -55,7 +59,12 @@ def main():
         torch.cuda.manual_seed_all(args.seed)
         cudnn.benchmark = True
         torch.backends.cudnn.deterministic=True #https://github.com/pytorch/pytorch/issues/8019
-    logging.info("gpu device_ids: %s" % args.device_ids)
+
+    logging.info("device_ids: %s" % args.device_ids)
+    logging.info("no_decay_small: %r" % args.no_decay_small)
+    logging.info("optimizer: %r" % args.optimizer)
+    #logging.info(type(args.lr_custom_step))
+    #if type(args.lr_custom_step) is str:
     args.lr_custom_step = [int(x) for x in args.lr_custom_step.split(',')]
     logging.info("lr_custom_step: %r" % args.lr_custom_step)
 
@@ -66,6 +75,7 @@ def main():
         return
     criterion = models.get_loss_function(cfg)
 
+    utils.check_folder(args.weights_dir)
     args.weights_dir = os.path.join(args.weights_dir, model_name)
     utils.check_folder(args.weights_dir)
     args.resume_file = os.path.join(args.weights_dir, args.case + "-" + args.resume_file)
@@ -179,6 +189,7 @@ def main():
 
         # training
         loss = train(train_loader, model, criterion, optimizer, args)
+        logging.info('[epoch %d]: train_loss %.3f' % (epoch, loss))
 
         # validate
         score, class_iou = validate(val_loader, model, criterion, args)
@@ -207,7 +218,7 @@ def main():
 def train(loader, model, criterion, optimizer, args):
     batch_time = utils.AverageMeter('Time', ':6.3f')
     data_time = utils.AverageMeter('Data', ':6.3f')
-    losses = utils.AverageMeter('Loss', ':.4e')
+    losses = utils.AverageMeter()
 
     model.train()
     end = time.time()
@@ -234,7 +245,7 @@ def train(loader, model, criterion, optimizer, args):
         batch_time.update(time.time() - end)
         end = time.time()
         if i % args.report_freq == 0:
-          logging.info('train %d/%d, loss:%f(%f), batch time:%f(%f), data load time: %f(%f)' %
+            logging.info('train %d/%d, loss:%.3f(%.3f), batch time:%.1f(%.1f), data load time: %.1f(%.1f)' %
               (i, len(loader), losses.val, losses.avg,
                batch_time.val,  batch_time.avg, data_time.val, data_time.avg))
 
