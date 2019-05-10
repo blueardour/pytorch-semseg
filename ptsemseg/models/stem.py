@@ -66,6 +66,8 @@ class VGG16(nn.Module):
             nn.Conv2d(4096, n_classes, 1),
         )
 
+        self.init_weight()
+
     def forward(self, x):
         raise RuntimeError("should never call here")
         conv1 = self.conv_block1(x)

@@ -17,9 +17,6 @@ class fcn32s(nn.Module):
         if self.learned_billinear:
             raise NotImplementedError
 
-        if hasattr(stem, "init_weight"):
-            stem.init_weight()
-
     def forward(self, x):
         conv1 = self.stem.conv_block1(x)
         conv2 = self.stem.conv_block2(conv1)
@@ -42,9 +39,6 @@ class fcn16s(nn.Module):
         # TODO: Add support for learned upsampling
         if self.learned_billinear:
             raise NotImplementedError
-
-        if hasattr(stem, "init_weight"):
-            stem.init_weight()
 
     def forward(self, x):
         conv1 = self.stem.conv_block1(x)
@@ -82,9 +76,6 @@ class fcn8s(nn.Module):
             self.upscore8 = nn.ConvTranspose2d(
                 self.n_classes, self.n_classes, 16, stride=8, bias=False
             )
-
-        if hasattr(stem, "init_weight"):
-            stem.init_weight()
 
         for m in self.modules():
             if isinstance(m, nn.ConvTranspose2d):
