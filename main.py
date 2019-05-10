@@ -18,8 +18,6 @@ def main():
     if utils.check_file(args.config):
         with open(args.config) as fp:
             cfg = yaml.load(fp, Loader=yaml.FullLoader)
-        if cfg is not None:
-            args = utils.update_config(cfg, args)
 
     if not os.path.exists(args.log_dir):
         os.makedirs(args.log_dir)
@@ -29,6 +27,7 @@ def main():
     else:
         model_name = args.model['arch']
         model_arch = args.model['base'] + '-' + args.model['arch']
+
     if args.evaluate:
         log_suffix = model_arch + '-eval-' + args.case
     else:
@@ -54,6 +53,8 @@ def main():
         cudnn.benchmark = True
         torch.backends.cudnn.deterministic=True #https://github.com/pytorch/pytorch/issues/8019
     logging.info("gpu device_ids: %s" % args.device_ids)
+    args.lr_custom_step = [int(x) for x in args.lr_custom_step.split(',')]
+    logging.info("lr_custom_step: %r" % args.lr_custom_step)
 
     if model_name in models.model_zoo:
         model = models.get_model(args, args.n_classes)
@@ -62,12 +63,12 @@ def main():
         return
     criterion = models.get_loss_function(cfg)
 
-    args.weights_dir = os.path.join(args.weights_dir, log_suffix)
+    args.weights_dir = os.path.join(args.weights_dir, model_name)
     utils.check_folder(args.weights_dir)
     args.resume_file = os.path.join(args.weights_dir, args.case + "-" + args.resume_file)
     args.pretrained = os.path.join(args.weights_dir, args.pretrained)
     epoch = 0
-    best_acc = -1.0
+    best_acc = 0
     # resume training
     if args.resume:
         logging.info("resuming from %s" % args.resume_file)
@@ -76,7 +77,7 @@ def main():
         logging.info("resuming ==> last epoch: %d" % epoch)
         epoch = epoch + 1
         best_acc = checkpoint['best_acc']
-        logging.info("resuming ==> best_top1: %f" % best_top1)
+        logging.info("resuming ==> best_acc: %f" % best_acc)
         utils.load_state_dict(model, checkpoint['state_dict'])
         logging.info("resumed from %s" % args.resume_file)
     else:
@@ -84,8 +85,8 @@ def main():
             logging.info("resuming from %s" % args.pretrained)
             checkpoint = torch.load(args.pretrained)
             logging.info("resuming ==> last epoch: %d" % checkpoint['epoch'])
-            logging.info("resuming ==> best_acc: %f" % checkpoint['best_acc'])
-            logging.info("resuming ==> learning_rate: %f" % checkpoint['learning_rate'])
+            logging.info("resuming ==> last best_acc: %f" % checkpoint['best_acc'])
+            logging.info("resuming ==> last learning_rate: %f" % checkpoint['learning_rate'])
             utils.load_state_dict(model, checkpoint['state_dict'])
         else:
             logging.info("no pretrained file exists({}), init model with default initlizer".
@@ -101,20 +102,22 @@ def main():
         #    criterion = criterion.cuda()
 
     # dataset
-    logging.info("loading dataset with batch_size {} and val-batch-size {}".
-        format(args.batch_size, args.val_batch_size))
-    data_loader = models.data_loader(cfg["data"]["dataset"])
     data_path = cfg["data"]["path"]
+    dataset = cfg["data"]["dataset"]
+    logging.info("loading dataset with batch_size {} and val-batch-size {}. dataset {} path: {}".
+        format(args.batch_size, args.val_batch_size, dataset, data_path))
+
+    data_loader = models.data_loader(dataset)
 
     if args.val_batch_size < 1:
         val_loader = None
     else:
-        dataset = data_loader(
+        val_dataset = data_loader(
             data_path, split=cfg['data']["val_split"], sbd_path=cfg["data"]["sbd_path"],
             is_transform=True, img_size=(cfg['data']["img_rows"], cfg['data']["img_cols"]), )
 
         val_loader = torch.utils.data.DataLoader(
-            dataset=dataset, batch_size=args.val_batch_size,
+            dataset=val_dataset, batch_size=args.val_batch_size,
             shuffle=False, num_workers=args.workers, pin_memory=True)
 
     if args.evaluate and val_loader is not None:
@@ -133,7 +136,7 @@ def main():
     #    logging.info("No data augmentations, consirder one? Here are some available: %r" %
     #        list(models.key2aug.keys()))
 
-    dataset = data_loader(
+    train_dataset = data_loader(
         data_path,  split=cfg["data"]["train_split"], sbd_path=cfg["data"]["sbd_path"],
         is_transform=True,
         img_size=(cfg["data"]["img_rows"], cfg["data"]["img_cols"]),
@@ -141,7 +144,7 @@ def main():
     )
 
     train_loader = torch.utils.data.DataLoader(
-            dataset=dataset, batch_size=args.batch_size,
+            dataset=train_dataset, batch_size=args.batch_size,
             shuffle=True, num_workers=args.workers, pin_memory=True, drop_last=True)
 
     params_dict = dict(model.named_parameters())
@@ -166,7 +169,7 @@ def main():
     if args.resume:
         optimizer.load_state_dict(checkpoint['optimizer'])
 
-    logging.info("start to train network " + log_suffix)
+    logging.info("start to train network " + model_name + ' with case ' + args.case)
     while epoch < args.epochs:
         lr = utils.adjust_learning_rate(optimizer, epoch, args)
         logging.info('[epoch %d]: lr %e', epoch, lr)
@@ -175,15 +178,15 @@ def main():
         loss = train(train_loader, model, criterion, optimizer, args)
 
         # validate
-        score, class_iou = validate(test_loader, model, criterion, args)
-        test_acc = score["Mean IoU : \t"]
-        is_best = test_acc > best_acc
+        score, class_iou = validate(val_loader, model, criterion, args)
+        val_acc = score["Mean IoU : \t"]
+        is_best = val_acc > best_acc
         if is_best:
-            best_acc = test_acc
-        logging.info('[epoch %d]: current acc: %f, best acc: %f', epoch, test_acc, best_acc)
+            best_acc = val_acc
+        logging.info('[epoch %d]: current acc: %f, best acc: %f', epoch, val_acc, best_acc)
 
         if args.tensorboard is not None:
-            args.tensorboard.add_scalar(log_suffix + '/eval-acc', test_acc, epoch)
+            args.tensorboard.add_scalar(log_suffix + '/eval-acc', val_acc, epoch)
             args.tensorboard.add_scalar(log_suffix + '/train-loss', loss, epoch)
             args.tensorboard.add_scalar(log_suffix + '/lr', lr, epoch)
 
@@ -221,6 +224,7 @@ def train(loader, model, criterion, optimizer, args):
         loss.backward()
 
         if i % args.iter_size == (args.iter_size - 1):
+            nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip) 
             optimizer.step()
 
         losses.update(loss.item(), input.size(0))
@@ -239,8 +243,8 @@ def validate(loader, model, criterion, args):
         return None, None
 
     running_metrics_val = models.runningScore(args.n_classes)
-
     model.eval()
+
     with torch.no_grad():
         for step, (input, target) in enumerate(loader):
 

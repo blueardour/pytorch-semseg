@@ -17,6 +17,9 @@ class fcn32s(nn.Module):
         if self.learned_billinear:
             raise NotImplementedError
 
+        if hasattr(stem, "init_weight"):
+            stem.init_weight()
+
     def forward(self, x):
         conv1 = self.stem.conv_block1(x)
         conv2 = self.stem.conv_block2(conv1)
@@ -39,6 +42,9 @@ class fcn16s(nn.Module):
         # TODO: Add support for learned upsampling
         if self.learned_billinear:
             raise NotImplementedError
+
+        if hasattr(stem, "init_weight"):
+            stem.init_weight()
 
     def forward(self, x):
         conv1 = self.stem.conv_block1(x)
@@ -76,6 +82,9 @@ class fcn8s(nn.Module):
             self.upscore8 = nn.ConvTranspose2d(
                 self.n_classes, self.n_classes, 16, stride=8, bias=False
             )
+
+        if hasattr(stem, "init_weight"):
+            stem.init_weight()
 
         for m in self.modules():
             if isinstance(m, nn.ConvTranspose2d):
@@ -118,33 +127,3 @@ class fcn8s(nn.Module):
 
         return out
 
-    def init_vgg16_params(self, vgg16, copy_fc8=True):
-        blocks = [
-            self.conv_block1,
-            self.conv_block2,
-            self.conv_block3,
-            self.conv_block4,
-            self.conv_block5,
-        ]
-
-        ranges = [[0, 4], [5, 9], [10, 16], [17, 23], [24, 29]]
-        features = list(vgg16.features.children())
-
-        for idx, conv_block in enumerate(blocks):
-            for l1, l2 in zip(features[ranges[idx][0] : ranges[idx][1]], conv_block):
-                if isinstance(l1, nn.Conv2d) and isinstance(l2, nn.Conv2d):
-                    assert l1.weight.size() == l2.weight.size()
-                    assert l1.bias.size() == l2.bias.size()
-                    l2.weight.data = l1.weight.data
-                    l2.bias.data = l1.bias.data
-        for i1, i2 in zip([0, 3], [0, 3]):
-            l1 = vgg16.classifier[i1]
-            l2 = self.classifier[i2]
-            l2.weight.data = l1.weight.data.view(l2.weight.size())
-            l2.bias.data = l1.bias.data.view(l2.bias.size())
-        n_class = self.classifier[6].weight.size()[0]
-        if copy_fc8:
-            l1 = vgg16.classifier[6]
-            l2 = self.classifier[6]
-            l2.weight.data = l1.weight.data[:n_class, :].view(l2.weight.size())
-            l2.bias.data = l1.bias.data[:n_class]
