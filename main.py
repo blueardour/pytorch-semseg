@@ -60,9 +60,9 @@ def main():
     logging.info("lr_custom_step: %r" % args.lr_custom_step)
 
     if model_name in models.model_zoo:
-        model = models.get_model(args, args.n_classes)
+        model = models.get_model(args, cfg['n_classes'])
     else:
-        logging.error("model not support, available models: %r" % models.model_zoo)
+        logging.error("model(%s) not support, available models: %r" % (model_name, models.model_zoo))
         return
     criterion = models.get_loss_function(cfg)
 
