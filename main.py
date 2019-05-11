@@ -141,10 +141,7 @@ def main():
 
     # Setup Augmentations
     augmentations = cfg["training"].get("augmentations", None)
-    data_aug = models.get_composed_augmentations(augmentations)
-    #if data_aug is None:
-    #    logging.info("No data augmentations, consirder one? Here are some available: %r" %
-    #        list(models.key2aug.keys()))
+    data_aug = datasets.get_composed_augmentations(augmentations)
 
     train_dataset = data_loader(
         data_path,  split=cfg["data"]["train_split"], sbd_path=cfg["data"]["sbd_path"],
