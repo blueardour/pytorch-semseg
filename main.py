@@ -134,9 +134,9 @@ def main():
         logging.info("evaluate the dataset on pretrained model...")
         score, class_iou = validate(val_loader, model, criterion, args)
         for k, v in score.items():
-            logger.info("{}: {}".format(k, v))
+            logging.info("{}: {}".format(k, v))
         for k, v in class_iou.items():
-            logger.info("{}: {}".format(k, v))
+            logging.info("{}: {}".format(k, v))
         return
 
     # Setup Augmentations
