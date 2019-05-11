@@ -6,10 +6,8 @@ import time
 import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
-import torchvision
-import torchvision.transforms as transforms
-import torchvision.datasets as datasets
 
+import datasets
 import models
 import utils
 from tensorboardX import SummaryWriter
@@ -23,6 +21,7 @@ def main():
                 cfg = yaml.load(fp, Loader=yaml.FullLoader)
             else:
                 cfg = yaml.load(fp)
+    args.__dict__['n_classes'] = cfg['n_classes']
 
     # log_dir
     if not os.path.exists(args.log_dir):
@@ -111,16 +110,14 @@ def main():
             model = nn.DataParallel(model, args.device_ids).cuda()
         else:
             model = model.cuda()
-        #if criterion is not None:
-        #    criterion = criterion.cuda()
+        #criterion = criterion.cuda()
 
     # dataset
     data_path = cfg["data"]["path"]
     dataset = cfg["data"]["dataset"]
     logging.info("loading dataset with batch_size {} and val-batch-size {}. dataset {} path: {}".
         format(args.batch_size, args.val_batch_size, dataset, data_path))
-
-    data_loader = models.data_loader(dataset)
+    data_loader = datasets.data_loader(dataset)
 
     if args.val_batch_size < 1:
         val_loader = None
@@ -200,8 +197,8 @@ def main():
         logging.info('[epoch %d]: current acc: %f, best acc: %f', epoch, val_acc, best_acc)
 
         if args.tensorboard is not None:
-            args.tensorboard.add_scalar(log_suffix + '/eval-acc', val_acc, epoch)
             args.tensorboard.add_scalar(log_suffix + '/train-loss', loss, epoch)
+            args.tensorboard.add_scalar(log_suffix + '/eval-acc', val_acc, epoch)
             args.tensorboard.add_scalar(log_suffix + '/lr', lr, epoch)
 
         utils.save_checkpoint({
