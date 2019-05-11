@@ -279,7 +279,7 @@ def validate(loader, model, criterion, args):
                 pred = outputs.data.max(1)[1].cpu().numpy()
 
             gt = target.data.cpu().numpy()
-            running_metrics.update(gt, pred)
+            running_metrics_val.update(gt, pred)
 
         score, class_iou = running_metrics_val.get_scores()
 
