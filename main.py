@@ -265,7 +265,8 @@ def validate(loader, model, criterion, args):
           
             outputs = model(input)
 
-            if args.eval_flip and not args.evaluate:
+            #if args.eval_flip and not args.evaluate:
+            if False:
                 # Flip images in numpy (not support in tensor)
                 outputs = outputs.data.cpu().numpy()
                 flipped_images = np.copy(images.data.cpu().numpy()[:, :, :, ::-1])
