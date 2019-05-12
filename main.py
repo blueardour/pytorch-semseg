@@ -33,8 +33,11 @@ def get_parameter():
     parser.set_defaults(model='fcn32s')
     parser.set_defaults(dataset='pascal')
     parser.set_defaults(root='/data/pascal')
-    parser.set_defaults(lr=1e-4)
+    parser.set_defaults(lr=1e-4)  #fcn32s: 1e-10 /fcn16s: 1e-12/ fcn8s:1e-14/
+    parser.set_defaults(weight_decay=5e-4)
+    parser.set_defaults(momentum=0.9)
     parser.set_defaults(lr_policy='fix')
+    parser.set_defaults(epochs=50)
     args = parser.parse_args()
     return args
 

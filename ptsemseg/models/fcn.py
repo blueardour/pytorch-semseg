@@ -13,7 +13,14 @@ class fcn32s(nn.Module):
         self.n_classes = n_classes
         self.stem = stem(n_classes)
         if self.learned_billinear:
-            raise NotImplementedError
+            self.upscore = nn.ConvTranspose2d(n_classes, n_classes, 64, stride=32, bias=False)
+        
+        for m in self.modules():
+            if isinstance(m, nn.ConvTranspose2d):
+                assert m.kernel_size[0] == m.kernel_size[1]
+                initial_weight = get_upsampling_weight(
+                        m.in_channels, m.out_channels, m.kernel_size[0])
+                m.weight.data.copy_(initial_weight)
 
     def forward(self, x):
         conv1 = self.stem.conv_block1(x)
@@ -22,7 +29,10 @@ class fcn32s(nn.Module):
         conv4 = self.stem.conv_block4(conv3)
         conv5 = self.stem.conv_block5(conv4)
         score = self.stem.classifier(conv5)
-        out = F.interpolate(score, x.size()[2:])
+        if self.learned_billinear:
+            out = self.upscore(score)
+        else:
+            out = F.interpolate(score, x.size()[2:])
         return out
 
 class fcn16s(nn.Module):
