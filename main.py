@@ -1,4 +1,4 @@
-import os, sys, glob, time, yaml
+import os, sys, glob, time
 import numpy as np
 import logging
 import argparse
@@ -12,16 +12,35 @@ import models
 import utils
 from tensorboardX import SummaryWriter
 
-def main():
-    args = utils.get_config()
+def get_parameter():
+    parser = utils.get_parser()
 
-    if utils.check_file(args.config):
-        with open(args.config) as fp:
-            if hasattr(yaml, 'FullLoader'):
-                cfg = yaml.load(fp, Loader=yaml.FullLoader)
-            else:
-                cfg = yaml.load(fp)
-    args.__dict__['n_classes'] = cfg['n_classes']
+    # custom config for quantization
+    parser.add_argument('--keyword', default='vgg16', type=str, help='key features')
+    parser.add_argument('--n_classes', default=21, type=int)
+    parser.add_argument('--aug', default=None, type=str,)
+    parser.add_argument('--eval_flip', action='store_true', default=False)
+    parser.add_argument('--sbd', default='benchmark_RELEASE', type=str,)
+    parser.add_argument('--val_split', default='val', type=str,)
+    parser.add_argument('--train_split', default='train_aug', type=str,)
+    parser.add_argument('--row', default='same', type=str,)
+    parser.add_argument('--col', default='same', type=str,)
+    parser.add_argument('--loss', default='cross_entropy', type=str,)
+    parser.add_argument('--size_average', action='store_true', default=False)
+    parser.add_argument('--learned_billinear', action='store_true', default=False)
+    parser.set_defaults(batch_size=1)
+    parser.set_defaults(val_batch_size=1)
+    parser.set_defaults(model='fcn32s')
+    parser.set_defaults(dataset='pascal')
+    parser.set_defaults(root='/data/pascal')
+    parser.set_defaults(lr=1e-4)
+    parser.set_defaults(lr_policy='fix')
+    args = parser.parse_args()
+    return args
+
+def main():
+    args = get_parameter()
+    cfg = None
 
     # log_dir
     if not os.path.exists(args.log_dir):
@@ -68,11 +87,16 @@ def main():
     logging.info("lr_custom_step: %r" % args.lr_custom_step)
 
     if model_name in models.model_zoo:
-        model = models.get_model(args, cfg['n_classes'])
+        config = dict()
+        for i in args.keyword.split(","):
+            i = i.strip()
+            logging.info('get keyword %s' % i)
+            config[i] = True
+        model = models.get_model(args, **config)
     else:
         logging.error("model(%s) not support, available models: %r" % (model_name, models.model_zoo))
         return
-    criterion = models.get_loss_function(cfg)
+    criterion = models.get_loss_function(args)
 
     utils.check_folder(args.weights_dir)
     args.weights_dir = os.path.join(args.weights_dir, model_name)
@@ -113,19 +137,17 @@ def main():
         #criterion = criterion.cuda()
 
     # dataset
-    data_path = cfg["data"]["path"]
-    dataset = cfg["data"]["dataset"]
+    data_path = os.path.join(args.root, "VOCdevkit/VOC2012")
+    args.sbd = os.path.join(args.root, args.sbd)
+    dataset = args.dataset
     logging.info("loading dataset with batch_size {} and val-batch-size {}. dataset {} path: {}".
         format(args.batch_size, args.val_batch_size, dataset, data_path))
-    data_loader = datasets.data_loader(dataset)
+    data_loader = datasets.data_loader(args.dataset)
 
     if args.val_batch_size < 1:
         val_loader = None
     else:
-        val_dataset = data_loader(
-            data_path, split=cfg['data']["val_split"], sbd_path=cfg["data"]["sbd_path"],
-            is_transform=True, img_size=(cfg['data']["img_rows"], cfg['data']["img_cols"]), )
-
+        val_dataset = data_loader(data_path, split=args.val_split, img_size=(args.row, args.col), sbd_path=args.sbd)
         val_loader = torch.utils.data.DataLoader(
             dataset=val_dataset, batch_size=args.val_batch_size,
             shuffle=False, num_workers=args.workers, pin_memory=True)
@@ -140,16 +162,9 @@ def main():
         return
 
     # Setup Augmentations
-    augmentations = cfg["training"].get("augmentations", None)
+    augmentations = args.aug
     data_aug = datasets.get_composed_augmentations(augmentations)
-
-    train_dataset = data_loader(
-        data_path,  split=cfg["data"]["train_split"], sbd_path=cfg["data"]["sbd_path"],
-        is_transform=True,
-        img_size=(cfg["data"]["img_rows"], cfg["data"]["img_cols"]),
-        augmentations=data_aug,
-    )
-
+    train_dataset = data_loader(data_path, split=args.train_split, img_size=(args.row, args.col), sbd_path=args.sbd, augmentations=data_aug)
     train_loader = torch.utils.data.DataLoader(
             dataset=train_dataset, batch_size=args.batch_size,
             shuffle=True, num_workers=args.workers, pin_memory=True, drop_last=True)

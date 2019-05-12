@@ -47,7 +47,7 @@ class pascalVOCLoader(data.Dataset):
         root,
         sbd_path=None,
         split="train_aug",
-        is_transform=False,
+        is_transform=True,
         img_size=512,
         augmentations=None,
         img_norm=True,

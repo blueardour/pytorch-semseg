@@ -1,19 +1,17 @@
 
 import torch.nn as nn
 import torch.nn.functional as F
-import functools
 
 from ptsemseg.models.utils import get_upsampling_weight
 from ptsemseg.loss import cross_entropy2d
 
 # FCN32s
 class fcn32s(nn.Module):
-    def __init__(self, stem, n_classes=21, learned_billinear=False, args=None):
+    def __init__(self, stem, n_classes=21, learned_billinear=False, **kwargs):
         super(fcn32s, self).__init__()
         self.learned_billinear = learned_billinear
         self.n_classes = n_classes
-        self.loss = functools.partial(cross_entropy2d, size_average=False)
-        self.stem = stem(n_classes, args)
+        self.stem = stem(n_classes)
         if self.learned_billinear:
             raise NotImplementedError
 
@@ -24,15 +22,14 @@ class fcn32s(nn.Module):
         conv4 = self.stem.conv_block4(conv3)
         conv5 = self.stem.conv_block5(conv4)
         score = self.stem.classifier(conv5)
-        out = F.upsample(score, x.size()[2:])
+        out = F.interpolate(score, x.size()[2:])
         return out
 
 class fcn16s(nn.Module):
-    def __init__(self, stem, n_classes=21, learned_billinear=False, args=None):
+    def __init__(self, stem, n_classes=21, learned_billinear=False, **kwargs):
         super(fcn16s, self).__init__()
         self.learned_billinear = learned_billinear
         self.n_classes = n_classes
-        self.loss = functools.partial(cross_entropy2d, size_average=False)
         self.stem = stem(args)
         self.score_pool4 = nn.Conv2d(512, self.n_classes, 1)
 
@@ -49,18 +46,17 @@ class fcn16s(nn.Module):
         score = self.stem.classifier(conv5)
 
         score_pool4 = self.score_pool4(conv4)
-        score = F.upsample(score, score_pool4.size()[2:])
+        score = F.interpolate(score, score_pool4.size()[2:])
         score += score_pool4
-        out = F.upsample(score, x.size()[2:])
+        out = F.interpolate(score, x.size()[2:])
         return out
 
 # FCN 8s
 class fcn8s(nn.Module):
-    def __init__(self, stem, n_classes=21, learned_billinear=True, args=None):
+    def __init__(self, stem, n_classes=21, learned_billinear=False, **kwargs):
         super(fcn8s, self).__init__()
         self.learned_billinear = learned_billinear
         self.n_classes = n_classes
-        self.loss = functools.partial(cross_entropy2d, size_average=False)
         self.stem = stem(args)
 
         self.score_pool4 = nn.Conv2d(512, self.n_classes, 1)
@@ -110,11 +106,11 @@ class fcn8s(nn.Module):
         else:
             score_pool4 = self.score_pool4(conv4)
             score_pool3 = self.score_pool3(conv3)
-            score = F.upsample(score, score_pool4.size()[2:])
+            score = F.interpolate(score, score_pool4.size()[2:])
             score += score_pool4
-            score = F.upsample(score, score_pool3.size()[2:])
+            score = F.interpolate(score, score_pool3.size()[2:])
             score += score_pool3
-            out = F.upsample(score, x.size()[2:])
+            out = F.interpolate(score, x.size()[2:])
 
         return out
 

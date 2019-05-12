@@ -4,11 +4,11 @@ import torch.nn.functional as F
 import torchvision.models as models
 
 class resnet18(nn.Module):
-    def __init__(self, n_classes=32, args=None):
+    def __init__(self, n_classes=32, **kwargs):
         super(resnet18, self).__init__()
 
 class VGG16(nn.Module):
-    def __init__(self, n_classes=32, args=None):
+    def __init__(self, n_classes=32, **kwargs):
         super(VGG16, self).__init__()
         self.conv_block1 = nn.Sequential(
             nn.Conv2d(3, 64, 3, padding=100),

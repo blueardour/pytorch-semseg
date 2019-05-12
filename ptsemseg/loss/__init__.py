@@ -1,6 +1,5 @@
 
 import functools
-
 from ptsemseg.loss.loss import (
     cross_entropy2d,
     bootstrapped_cross_entropy2d,
@@ -15,16 +14,10 @@ key2loss = {
 }
 
 
-def get_loss_function(cfg):
-    if cfg["training"]["loss"] is None:
-        return cross_entropy2d
+def get_loss_function(args):
+    loss_name = args.loss
+    if loss_name not in key2loss:
+        raise NotImplementedError("Loss {} not implemented".format(loss_name))
 
-    else:
-        loss_dict = cfg["training"]["loss"]
-        loss_name = loss_dict["name"]
-        loss_params = {k: v for k, v in loss_dict.items() if k != "name"}
+    return functools.partial(key2loss[loss_name], size_average=args.size_average)
 
-        if loss_name not in key2loss:
-            raise NotImplementedError("Loss {} not implemented".format(loss_name))
-
-        return functools.partial(key2loss[loss_name], **loss_params)

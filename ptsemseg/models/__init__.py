@@ -34,24 +34,21 @@ def _get_model_instance(name):
     except:
         raise ("Model {} not available".format(name))
 
-def get_model(args, n_classes=21, version=None):
-    if isinstance(args.model, str):
-      name = args.model
-      base = 'vgg16'
+def get_model(args, **kwargs):
+    if 'vgg16' in kwargs:
+        stem = stem_list['vgg16']
+    elif 'resnet18' in kwargs:
+        stem = stem_list['resnet18']
     else:
-      name = args.model['arch']
-      base = args.model['base']
-    seg_model = _get_model_instance(name)
-
-    stem = None
-    if base in ["resnet18", 'vgg16']:
-        stem = stem_list[base]
+        stem = None
     if stem is None:
-        print("stem not support")
+        raise ("stem not available")
 
+    name = args.model
+    seg_model = _get_model_instance(name)
     model = None
     if name in ["fcn32s", "fcn16s", "fcn8s"]:
-        model = seg_model(stem, n_classes=n_classes, args=args)
+        model = seg_model(stem, n_classes=args.n_classes, learned_billinear=args.learned_billinear, **kwargs)
         #vgg16 = models.vgg16(pretrained=True)
         #model.init_vgg16_params(vgg16)
 
